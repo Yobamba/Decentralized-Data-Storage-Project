@@ -4,6 +4,9 @@ import movies from "./routes/movies.js";
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger.js';
 
+const app = express()
+const port = 3000
+
 app.get('/swagger.json', (req, res) => {
   res.json(swaggerSpec);
 });
@@ -14,8 +17,7 @@ app.use(
   swaggerUi.setup(swaggerSpec)
 );
 
-const app = express()
-const port = 3000
+
 
 app.use(express.json());
 // Load the /movies routes
