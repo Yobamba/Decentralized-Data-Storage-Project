@@ -5,6 +5,10 @@ const app = express()
 
 app.use(express.json());
 
+app.get('/swagger.json', (req, res) => {
+  res.json(swaggerSpec);
+});
+
 app.use(
   '/api-docs',
   swaggerUi.serve,
