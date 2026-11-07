@@ -1,6 +1,7 @@
 import express from 'express'
 import movies from "./routes/movies.js";
-// import users from "./routes/users.js";
+import anime from "./routes/anime.js";
+import users from "./routes/users.js";
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './swagger.js';
 
@@ -22,8 +23,8 @@ app.use(
 app.use(express.json());
 // Load the /movies routes
 app.use("/movies", movies);
-// Load the /users routes
-// app.use("/users", users);
+app.use("/anime", anime);
+app.use("/users", users);
 app.listen(port, () => {
  console.log(`backend listening on port ${port}`)
 })
