@@ -28,23 +28,23 @@ import swaggerJSDoc from "swagger-jsdoc";
 const router = express.Router();
 // return first 50 documents from movies collection
 router.get("/", async (req, res, next) => {
- const page = Number(req.query.page ?? 1);
- const limit = Number(req.query.limit ?? 50);
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 50);
 
- if (!Number.isInteger(page) || page < 1) {
-   return res.status(400).send({ error: "Invalid page parameter" });
- }
- if (!Number.isInteger(limit) || limit < 1) {
-   return res.status(400).send({ error: "Invalid limit parameter" });
- }
+  if (!Number.isInteger(page) || page < 1) {
+    return res.status(400).send({ error: "Invalid page parameter" });
+  }
+  if (!Number.isInteger(limit) || limit < 1) {
+    return res.status(400).send({ error: "Invalid limit parameter" });
+  }
 
-
- const results = await db.collection('movies')
- .find({})
- .limit(limit)
- .sort({ id: 1 }) // Sort by id in ascending order
- .skip((page - 1) * limit)
- .toArray();
- res.send(results).status(200);
+  const results = await db
+    .collection("movies")
+    .find({})
+    .limit(limit)
+    .sort({ id: 1 }) // Sort by id in ascending order
+    .skip((page - 1) * limit)
+    .toArray();
+  res.send(results).status(200);
 });
 export default router;

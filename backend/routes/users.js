@@ -28,32 +28,28 @@ import swaggerJSDoc from "swagger-jsdoc";
 const router = express.Router();
 // return first 50 documents from users collection
 router.get("/", async (req, res) => {
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 50);
 
- const page = Number(req.query.page ?? 1);
- const limit = Number(req.query.limit ?? 50);
-
- if (!Number.isInteger(page) || page < 1) {
+  if (!Number.isInteger(page) || page < 1) {
     return res.status(400).send({ error: "Invalid page parameter" });
- }
- if (!Number.isInteger(limit) || limit < 1) {
-   return res.status(400).send({ error: "Invalid limit parameter" });
- }
+  }
+  if (!Number.isInteger(limit) || limit < 1) {
+    return res.status(400).send({ error: "Invalid limit parameter" });
+  }
 
-
- try {
-     const results = await db.collection('users')
-    .find({})
-    .limit(limit)
-    .skip((page - 1) * limit)
-    .sort({ id: 1 })
-    .toArray();
+  try {
+    const results = await db
+      .collection("users")
+      .find({})
+      .limit(limit)
+      .skip((page - 1) * limit)
+      .sort({ id: 1 })
+      .toArray();
     res.status(200).send(results);
-
- } catch (error) {
+  } catch (error) {
     console.error(error);
     return res.status(500).send({ error: "Internal server error" });
- }
-
-
+  }
 });
 export default router;
