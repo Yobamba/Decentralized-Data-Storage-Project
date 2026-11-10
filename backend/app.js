@@ -23,7 +23,7 @@ app.use(
 app.use(express.json());
 // Load the /movies routes
 app.use("/movies", movies);
-app.use("/anime", anime);
+app.use("/anime", anime); 
 app.use("/users", users);
 app.listen(port, () => {
  console.log(`backend listening on port ${port}`)
