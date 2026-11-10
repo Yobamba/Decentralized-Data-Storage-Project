@@ -42,6 +42,7 @@ router.get("/", async (req, res, next) => {
  const results = await db.collection('movies')
  .find({})
  .limit(limit)
+ .sort({ id: 1 }) // Sort by id in ascending order
  .skip((page - 1) * limit)
  .toArray();
  res.send(results).status(200);
