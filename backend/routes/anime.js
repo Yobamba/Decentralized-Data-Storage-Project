@@ -45,7 +45,7 @@ router.get("/", async (req, res) => {
       .find({})
       .limit(limit)
       .skip((page - 1) * limit)
-      .sort({ id: 1 }) // Sort by id in ascending order
+      .sort({ id: -1 }) // Sort by id in ascending order
       .toArray();
 
     res.status(200).send(results);
@@ -55,17 +55,72 @@ router.get("/", async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /anime:
+ *   post:
+ *     summary: Add one or multiple anime records
+ *     tags:
+ *       - Anime
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             oneOf:
+ *               - type: object
+ *               - type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       '201':
+ *         description: Record(s) created successfully
+ *       '400':
+ *         description: Invalid request payload
+ *       '500':
+ *         description: Internal server error
+ */
 router.post("/", async (req, res) => {
-  const {
-    titulo,
+  if (!req.body) {
+    return res.status(400).send({ error: "Request body is missing" });
+  }
 
-    genero,
-    ano_lancamento,
-    estudio,
-    episodios,
-    classificacao_imdb,
-    idioma_original,
-    popularidade,
-  } = req.body;
+  const items = Array.isArray(req.body) ? req.body : [req.body];
+  const highestId = await db
+    .collection("anime")
+    .find()
+    .sort({ id: -1 })
+    .limit(1)
+    .toArray();
+
+  let newId = highestId.length > 0 ? highestId[0].id + 1 : 1;
+
+  try {
+    const collection = db.collection("anime");
+
+    const documentsToInsert = items.map((item) => {
+      newId += 1;
+      return {
+        id: newId + 1,
+        titulo: item.titulo,
+        genero: item.genero,
+        ano_lancamento: item.ano_lancamento,
+        estudio: item.estudio,
+        episodios: item.episodios,
+        classificacao_imdb: item.classificacao_imdb,
+        idioma_original: item.idioma_original,
+        popularidade: item.popularidade,
+      };
+    });
+
+    const result = await collection.insertMany(documentsToInsert);
+
+    res
+      .status(201)
+      .send({ message: "Anime added successfully", id: result.insertedId });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ error: "Internal server error" });
+  }
 });
 export default router;
