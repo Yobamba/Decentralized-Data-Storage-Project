@@ -176,4 +176,47 @@ router.get("/:id", async (req, res) => {
     return res.status(500).send({ error: "Internal server error" });
   }
 });
+
+/** * @openapi
+ * /anime/{id}:
+ *   delete:
+ *     summary: Delete anime by ID
+ *     tags:
+ *       - Anime
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the anime to delete
+ *     responses:
+ *       '200':
+ *         description: Anime deleted successfully
+ *       '400':
+ *         description: Invalid anime ID provided
+ *       '404':
+ *         description: Anime not found with the given ID
+ */
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const animeId = parseInt(req.params.id);
+    if (isNaN(animeId)) {
+      return res.status(400).send({ error: "Invalid anime ID" });
+    }
+
+    const collection = db.collection("anime");
+    const result = await collection.deleteOne({ id: animeId });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ error: "Anime not found" });
+    }
+
+    res.status(200).send({ message: "Anime deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ error: "Internal server error" });
+  }
+});
 export default router;
