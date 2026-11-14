@@ -220,6 +220,52 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+/** * @openapi
+ * /anime/{id}:
+ *   put:
+ *     summary: Update anime by ID
+ *     tags:
+ *       - Anime
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the anime to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               titulo:
+ *                 type: string
+ *               genero:
+ *                 type: string
+ *               ano_lancamento:
+ *                 type: integer
+ *               estudio:
+ *                 type: string
+ *               episodios:
+ *                 type: integer
+ *               classificacao_imdb:
+ *                 type: number
+ *               idioma_original:
+ *                 type: string
+ *               popularidade:
+ *                 type: number
+ *     responses:
+ *       '200':
+ *         description: Anime updated successfully
+ *       '400':
+ *         description: Invalid request payload or anime ID
+ *       '404':
+ *         description: Anime not found with the given ID
+ *       '500':
+ *         description: Internal server error
+ */
 router.put("/:id", async (req, res) => {
   const animeId = Number(req.params.id);
 
