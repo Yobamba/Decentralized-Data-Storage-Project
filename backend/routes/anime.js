@@ -219,4 +219,109 @@ router.delete("/:id", async (req, res) => {
     return res.status(500).send({ error: "Internal server error" });
   }
 });
+
+router.put("/:id", async (req, res) => {
+  const animeId = Number(req.params.id);
+
+  if (!Number.isInteger(animeId)) {
+    return res.status(400).send({ error: "Invalid: id must be an integer" });
+  }
+
+  const {
+    titulo,
+    genero,
+    ano_lancamento,
+    estudio,
+    episodios,
+    classificacao_imdb,
+    idioma_original,
+    popularidade,
+  } = req.body ?? {};
+
+  const updates = {};
+
+  if (titulo !== undefined) {
+    if (typeof titulo !== "string" || !titulo.trim()) {
+      return res.status(400).send({ error: "Invalid titulo" });
+    }
+    updates.titulo = titulo.trim();
+  }
+
+  if (genero !== undefined) {
+    if (typeof genero !== "string" || !genero.trim()) {
+      return res.status(400).send({ error: "Invalid genero" });
+    }
+    updates.genero = genero.trim();
+  }
+
+  if (ano_lancamento !== undefined) {
+    if (!Number.isInteger(ano_lancamento) || ano_lancamento < 0) {
+      return res.status(400).send({ error: "Invalid ano_lancamento" });
+    }
+    updates.ano_lancamento = ano_lancamento;
+  }
+
+  if (estudio !== undefined) {
+    if (typeof estudio !== "string" || !estudio.trim()) {
+      return res.status(400).send({ error: "Invalid estudio" });
+    }
+    updates.estudio = estudio.trim();
+  }
+
+  if (episodios !== undefined) {
+    if (!Number.isInteger(episodios) || episodios < 0) {
+      return res.status(400).send({ error: "Invalid number of episodios" });
+    }
+    updates.episodios = episodios;
+  }
+
+  if (classificacao_imdb !== undefined) {
+    if (
+      typeof classificacao_imdb !== "number" ||
+      Number.isNaN(classificacao_imdb) ||
+      classificacao_imdb < 0 ||
+      classificacao_imdb > 10
+    ) {
+      return res.status(400).send({ error: "Invalid classificacao_imdb" });
+    }
+    updates.classificacao_imdb = classificacao_imdb;
+  }
+
+  if (idioma_original !== undefined) {
+    if (typeof idioma_original !== "string" || !idioma_original.trim()) {
+      return res.status(400).send({ error: "Invalid idioma_original" });
+    }
+    updates.idioma_original = idioma_original.trim();
+  }
+
+  if (popularidade !== undefined) {
+    if (typeof popularidade !== "number" || Number.isNaN(popularidade)) {
+      return res.status(400).send({ error: "Invalid popularidade" });
+    }
+    updates.popularidade = popularidade;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return res
+      .status(400)
+      .send({ error: "No valid fields provided to update" });
+  }
+
+  try {
+    const collection = db.collection("anime");
+    const result = await collection.updateOne(
+      { id: animeId },
+      { $set: updates },
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ error: "Not found" });
+    }
+
+    res.status(200).send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Internal server error" });
+  }
+});
 export default router;
