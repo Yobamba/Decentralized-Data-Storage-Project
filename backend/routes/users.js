@@ -52,4 +52,75 @@ router.get("/", async (req, res) => {
     return res.status(500).send({ error: "Internal server error" });
   }
 });
+
+/**
+ * @openapi
+ * /users/ratings/{order}:
+ *   get:
+ *     summary: Get users sorted by the number of ratings
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: order
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: The sorting order (asc for ascending, desc for descending)
+ *     responses:
+ *       '200':
+ *         description: A list of users sorted by the number of ratings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   title:
+ *                     type: string
+ */
+router.get("/ratings/:order", async (req, res) => {
+  const order = req.params.order.toString();
+
+  const isValidOrder = order === "asc" || order === "desc";
+
+  if (!isValidOrder) {
+    return res
+      .status(400)
+      .send({ error: "Invalid sorting order. Use asc or desc" });
+  }
+
+  const sortDirection = order === "asc" ? 1 : -1;
+
+  try {
+    const collection = db.collection("users");
+    const result = await collection
+      .aggregate([
+        {
+          $addFields: {
+            total_avaliacoes: {
+              $size: { $ifNull: ["$avaliacoes", []] },
+            },
+          },
+        },
+        {
+          $sort: { total_avaliacoes: sortDirection },
+        },
+
+        {
+          $unset: "total_avaliacoes",
+        },
+      ])
+      .toArray();
+
+    res.status(200).send(result);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ "error: ": "Internal server error" });
+  }
+});
 export default router;
