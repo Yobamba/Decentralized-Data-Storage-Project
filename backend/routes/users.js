@@ -123,4 +123,59 @@ router.get("/ratings/:order", async (req, res) => {
     return res.status(500).send({ "error: ": "Internal server error" });
   }
 });
+
+/**
+ * @openapi
+ * /users/star:
+ *   get:
+ *     summary: Get users sorted by the number of 5-star ratings
+ *     tags:
+ *       - Users
+ *     responses:
+ *       '200':
+ *         description: A list of users sorted by the number of 5-star ratings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   title:
+ *                     type: string
+ */
+router.get("/star", async (req, res) => {
+  try {
+    const collection = db.collection("users");
+    const result = await collection
+      .aggregate([
+        {
+          $addFields: {
+            stars: {
+              $size: {
+                $filter: {
+                  input: { $ifNull: ["$avaliacoes", []] },
+                  as: "item",
+                  cond: { $eq: ["$$item.nota", 5] },
+                },
+              },
+            },
+          },
+        },
+        {
+          $sort: { stars: -1 },
+        },
+        {
+          $unset: "stars",
+        },
+      ])
+      .toArray();
+    res.status(200).send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send(error);
+  }
+});
 export default router;
