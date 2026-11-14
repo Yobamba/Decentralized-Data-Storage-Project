@@ -370,4 +370,60 @@ router.put("/:id", async (req, res) => {
     res.status(500).send({ error: "Internal server error" });
   }
 });
+
+/** * @openapi
+ * /anime/top/{limit}:
+ *   get:
+ *     summary: Get top anime by IMDb rating
+ *     tags:
+ *       - Anime
+ *     parameters:
+ *       - in: path
+ *         name: limit
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The number of top anime to retrieve (1-100)
+ *     responses:
+ *       '200':
+ *         description: A list of top anime sorted by IMDb rating
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   title:
+ *                     type: string
+ *                   classificacao_imdb:
+ *                     type: number
+ */
+router.get("/top/:limit", async (req, res) => {
+  const limit = Number(req.params.limit);
+
+  if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
+    return res
+      .status(400)
+      .send({ error: "Invalid limit: must be a number between 1 and 100" });
+  }
+
+  try {
+    const collection = db.collection("anime");
+
+    const result = await collection
+      .find({})
+      .sort({ classificacao_imdb: -1 })
+      .limit(limit)
+      .toArray();
+
+    return res.status(200).send(result);
+  } catch (error) {
+    console.error("error: ", error);
+    return res.status(500).send({ error: "Internal server error" });
+  }
+});
+
 export default router;
