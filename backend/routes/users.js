@@ -64,6 +64,105 @@ router.get("/", async (req, res) => {
     return res.status(500).send({ error: "Internal server error" });
   }
 });
+/**
+ * @openapi
+ * /users/{id}:
+ *   get:
+ *     summary: Get a user by ID and include their top 3 rated animes
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the user to retrieve
+ *     responses:
+ *       '200':
+ *         description: User found with their top 3 rated animes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *                 avaliacoes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       animeId:
+ *                         type: integer
+ *                       nota:
+ *                         type: integer
+ *                       comentario:
+ *                         type: string
+ *                       data:
+ *                         type: string
+ *                 topRatedAnimes:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       animeId:
+ *                         type: integer
+ *                       nota:
+ *                         type: integer
+ *                       comentario:
+ *                         type: string
+ *                       data:
+ *                         type: string
+ *       '400':
+ *         description: Invalid user ID parameter
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       '404':
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+router.get("/:id", async (req, res) => {
+  const userId = Number(req.params.id);
+
+  if (!Number.isInteger(userId) || userId < 1) {
+    return res.status(400).send({ error: "Invalid user ID" });
+  }
+
+  try {
+    const collection = db.collection("users");
+    const user = await collection.findOne({ id: userId });
+
+    if (!user) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    // Sort the user's ratings by nota in descending order and take the top 3
+    const topRatedAnimes = (user.avaliacoes || [])
+      .sort((a, b) => b.nota - a.nota)
+      .slice(0, 3);
+
+    res.status(200).send({ ...user, topRatedAnimes });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ error: "Internal server error" });
+  }
+});
 
 /**
  * @openapi
