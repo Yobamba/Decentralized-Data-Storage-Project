@@ -274,6 +274,154 @@ router.post("/", async (req, res) => {
 
 /**
  * @openapi
+ * /users/{id}:
+ *   put:
+ *     summary: Update a user by ID
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the user to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               idade:
+ *                 type: integer
+ *               cidade:
+ *                 type: string
+ *               distrito:
+ *                 type: string
+ *               pais:
+ *                 type: string
+ *               data_registo:
+ *                 type: string
+ *                 format: date
+ *               activo:
+ *                 type: boolean
+ *     responses:
+ *       '200':
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       '400':
+ *         description: Invalid input parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       '404':
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+router.put("/:id", async (req, res) => {
+  const userId = Number(req.params.id);
+  const { name, email, idade, cidade, distrito, pais, data_registo, activo } =
+    req.body ?? {};
+
+  if (!Number.isInteger(userId) || userId < 1) {
+    return res.status(400).send({ error: "Invalid user ID" });
+  }
+
+  if (name !== undefined && (typeof name !== "string" || !name.trim())) {
+    return res.status(400).send({ error: "Invalid name" });
+  }
+
+  if (email !== undefined && (typeof email !== "string" || !email.trim())) {
+    return res.status(400).send({ error: "Invalid email" });
+  }
+
+  if (idade !== undefined && (!Number.isInteger(idade) || idade < 0)) {
+    return res.status(400).send({ error: "Invalid idade" });
+  }
+
+  if (cidade !== undefined && (typeof cidade !== "string" || !cidade.trim())) {
+    return res.status(400).send({ error: "Invalid cidade" });
+  }
+
+  if (
+    distrito !== undefined &&
+    (typeof distrito !== "string" || !distrito.trim())
+  ) {
+    return res.status(400).send({ error: "Invalid distrito" });
+  }
+
+  if (pais !== undefined && (typeof pais !== "string" || !pais.trim())) {
+    return res.status(400).send({ error: "Invalid pais" });
+  }
+
+  if (
+    data_registo !== undefined &&
+    (typeof data_registo !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(data_registo))
+  ) {
+    return res
+      .status(400)
+      .send({ error: "data_registo must use YYYY-MM-DD format" });
+  }
+
+  if (activo !== undefined && typeof activo !== "boolean") {
+    return res.status(400).send({ error: "Invalid activo" });
+  }
+
+  try {
+    const collection = db.collection("users");
+    const updates = {};
+    if (name !== undefined) updates.name = name.trim();
+    if (email !== undefined) updates.email = email.trim().toLowerCase();
+    if (idade !== undefined) updates.idade = idade;
+    if (cidade !== undefined) updates.cidade = cidade.trim();
+    if (distrito !== undefined) updates.distrito = distrito.trim();
+    if (pais !== undefined) updates.pais = pais.trim();
+    if (data_registo !== undefined) updates.data_registo = data_registo;
+    if (activo !== undefined) updates.activo = activo;
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).send({ error: "No valid fields to update" });
+    }
+
+    const result = await collection.updateOne(
+      { id: userId },
+      { $set: updates },
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    res.status(200).send({ message: "User updated successfully" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ error: "Internal server error" });
+  }
+});
+
+/**
+ * @openapi
  * /users/ratings/{order}:
  *   get:
  *     summary: Get users sorted by the number of ratings
