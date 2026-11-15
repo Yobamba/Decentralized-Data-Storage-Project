@@ -473,7 +473,7 @@ router.get("/language/:language", async (req, res) => {
 /** * @openapi
  * /anime/{id}:
  *   get:
- *     summary: Get anime by ID
+ *     summary: Get anime by ID with average score
  *     tags:
  *       - Anime
  *     parameters:
@@ -485,7 +485,7 @@ router.get("/language/:language", async (req, res) => {
  *         description: The ID of the anime to retrieve
  *     responses:
  *       '200':
- *         description: Anime found and returned successfully
+ *         description: Anime details with average score
  *         content:
  *           application/json:
  *             schema:
@@ -495,18 +495,39 @@ router.get("/language/:language", async (req, res) => {
  *                   type: integer
  *                 title:
  *                   type: string
+ *                 genero:
+ *                   type: string
+ *                 ano_lancamento:
+ *                   type: integer
+ *                 estudio:
+ *                   type: string
+ *                 episodios:
+ *                   type: integer
+ *                 classificacao_imdb:
+ *                   type: number
+ *                 idioma_original:
+ *                   type: string
+ *                 popularidade:
+ *                   type: number
+ *                 averageScore:
+ *                   type: number
  *       '400':
  *         description: Invalid anime ID provided
  *       '404':
  *         description: Anime not found with the given ID
+ *       '500':
+ *         description: Internal server error
  */
-router.get("/:id", async (req, res) => {
-  try {
-    const animeId = parseInt(req.params.id);
-    if (isNaN(animeId)) {
-      return res.status(400).send({ error: "Invalid anime ID" });
-    }
 
+// return the anime by the id with all the info about it plus the average score
+router.get("/:id", async (req, res) => {
+  const animeId = Number(req.params.id);
+
+  if (!Number.isInteger(animeId)) {
+    return res.status(400).send({ error: "Invalid: id must be an integer" });
+  }
+
+  try {
     const collection = db.collection("anime");
     const anime = await collection.findOne({ id: animeId });
 
@@ -514,7 +535,25 @@ router.get("/:id", async (req, res) => {
       return res.status(404).send({ error: "Anime not found" });
     }
 
-    res.status(200).send(anime);
+    // Calculate the average score from the users collection
+    const userRatings = await db
+      .collection("users")
+      .aggregate([
+        { $unwind: "$avaliacoes" },
+        { $match: { "avaliacoes.item_id": animeId } },
+        {
+          $group: {
+            _id: null,
+            averageScore: { $avg: "$avaliacoes.nota" },
+          },
+        },
+      ])
+      .toArray();
+
+    const averageScore =
+      userRatings.length > 0 ? userRatings[0].averageScore : null;
+
+    res.status(200).send({ ...anime, averageScore });
   } catch (error) {
     console.error(error);
     return res.status(500).send({ error: "Internal server error" });
