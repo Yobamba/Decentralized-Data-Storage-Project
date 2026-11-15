@@ -508,7 +508,7 @@ router.get("/language/:language", async (req, res) => {
  *                 idioma_original:
  *                   type: string
  *                 popularidade:
- *                   type: number
+ *                   type: string
  *                 averageScore:
  *                   type: number
  *       '400':
@@ -638,7 +638,7 @@ router.delete("/:id", async (req, res) => {
  *               idioma_original:
  *                 type: string
  *               popularidade:
- *                 type: number
+ *                 type: string
  *     responses:
  *       '200':
  *         description: Anime updated successfully
@@ -724,10 +724,10 @@ router.put("/:id", async (req, res) => {
   }
 
   if (popularidade !== undefined) {
-    if (typeof popularidade !== "number" || Number.isNaN(popularidade)) {
+    if (typeof popularidade !== "string" || !popularidade.trim()) {
       return res.status(400).send({ error: "Invalid popularidade" });
     }
-    updates.popularidade = popularidade;
+    updates.popularidade = popularidade.trim();
   }
 
   if (Object.keys(updates).length === 0) {
