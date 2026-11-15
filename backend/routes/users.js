@@ -8,6 +8,19 @@ const router = express.Router();
  * /users:
  *   get:
  *     summary: Get all users
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of records per page
  *     tags:
  *       - Users
  *     responses:
