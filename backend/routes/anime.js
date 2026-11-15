@@ -8,6 +8,19 @@ const router = express.Router();
  * /anime:
  *   get:
  *     summary: Get all anime
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of records per page
  *     tags:
  *       - Anime
  *     responses:
@@ -28,7 +41,7 @@ const router = express.Router();
 // #1 return first 50 documents from anime collection
 router.get("/", async (req, res) => {
   const page = Number(req.query.page ?? 1);
-  const limit = Number(req.query.limit ?? 50);
+  const limit = Number(req.query.limit ?? 20);
 
   if (!Number.isInteger(page) || page < 1) {
     return res.status(400).send({ error: "Invalid page parameter" });
