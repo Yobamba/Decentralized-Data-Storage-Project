@@ -1,6 +1,5 @@
 import express from "express";
 import db from "../db/config.js";
-import { ObjectId } from "mongodb";
 import swaggerJSDoc from "swagger-jsdoc";
 
 /**
@@ -255,6 +254,117 @@ router.get("/year/:year", async (req, res) => {
       ])
       .toArray();
     res.status(200).send(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Internal server error" });
+  }
+});
+
+/**
+ * @openapi
+ * /users/{id}/review/{animeId}:
+ *   post:
+ *     summary: Add a review for a specific anime by a user
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the user
+ *       - in: path
+ *         name: animeId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the anime to review
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nota:
+ *                 type: number
+ *                 description: The rating given by the user (1-5)
+ *               data:
+ *                 type: string
+ *                 format: date
+ *                 description: The date of the review
+ *     responses:
+ *       '200':
+ *         description: Review added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       '400':
+ *         description: Missing required fields or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       '404':
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+router.post("/:id/review/:animeId", async (req, res) => {
+  const userId = Number(req.params.id);
+  const animeId = Number(req.params.animeId);
+  const { nota, data } = req.body ?? {};
+
+  if (!Number.isInteger(userId) || userId < 1) {
+    return res.status(400).send({ error: "Invalid user ID" });
+  }
+  if (!Number.isInteger(animeId) || animeId < 1) {
+    return res.status(400).send({ error: "Invalid anime ID" });
+  }
+  if (!Number.isInteger(nota) || nota < 1 || nota > 5) {
+    return res
+      .status(400)
+      .send({ error: "Rating must be an integer from 1 to 5" });
+  }
+  if (typeof data !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    return res
+      .status(400)
+      .send({ error: "Review date must use YYYY-MM-DD format" });
+  }
+
+  try {
+    const collection = db.collection("users");
+    const result = await collection.updateOne(
+      { id: userId },
+      {
+        $push: {
+          avaliacoes: {
+            animeId,
+            nota,
+            data,
+          },
+        },
+      },
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    res.status(200).send({ message: "Review added successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).send({ error: "Internal server error" });
