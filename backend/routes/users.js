@@ -67,6 +67,86 @@ router.get("/", async (req, res) => {
 
 /**
  * @openapi
+ * /users:
+ *   post:
+ *     summary: Add one or multiple users
+ *     tags:
+ *       - Users
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: array
+ *             items:
+ *               type: object
+ *               properties:
+ *                 name:
+ *                   type: string
+ *                 email:
+ *                   type: string
+ *     responses:
+ *       '201':
+ *         description: User(s) added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 insertedCount:
+ *                   type: integer
+ *                 insertedIds:
+ *                   type: object
+ */
+
+router.post("/", async (req, res) => {
+  if (!req.body || typeof req.body !== "object") {
+    return res.status(400).json({ error: "Request body is required" });
+  }
+
+  const rawUsers = Array.isArray(req.body) ? req.body : [req.body];
+
+  if (rawUsers.length === 0) {
+    return res.status(400).json({ error: "At least one user is required" });
+  }
+
+  const usersToInsert = [];
+  for (const user of rawUsers) {
+    if (!user || typeof user !== "object" || !user.name || !user.email) {
+      return res.status(400).json({
+        error: "Each user must be an object with 'name' and 'email'",
+      });
+    }
+
+    usersToInsert.push({
+      name: String(user.name).trim(),
+      email: String(user.email).trim().toLowerCase(),
+      createdAt: new Date(),
+    });
+  }
+
+  try {
+    const collection = db.collection("users");
+    const result = await collection.insertMany(usersToInsert);
+
+    return res.status(201).json({
+      message: "User(s) added successfully",
+      insertedCount: result.insertedCount,
+      insertedIds: result.insertedIds,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({ error: "Duplicate user record exists" });
+    }
+    console.error(error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * @openapi
  * /users/ratings/{order}:
  *   get:
  *     summary: Get users sorted by the number of ratings
