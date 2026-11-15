@@ -29,7 +29,12 @@ const router = express.Router();
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-async function sendAnimeResults(req, res, filter, sort = { popularidade: -1, id: 1 }) {
+async function sendAnimeResults(
+  req,
+  res,
+  filter,
+  sort = { popularidade: -1, id: 1 },
+) {
   const page = Number(req.query.page ?? 1);
   const limit = Number(req.query.limit ?? 50);
 
@@ -41,7 +46,8 @@ async function sendAnimeResults(req, res, filter, sort = { popularidade: -1, id:
     limit > 100
   ) {
     return res.status(400).send({
-      error: "Invalid pagination. Page must be positive and limit must be between 1 and 100",
+      error:
+        "Invalid pagination. Page must be positive and limit must be between 1 and 100",
     });
   }
 
@@ -200,11 +206,9 @@ router.get("/genre/:genre", async (req, res) => {
   }
 
   const genrePattern = `(^|,\\s*)${escapeRegex(genre)}(\\s*,|$)`;
-  return sendAnimeResults(
-    req,
-    res,
-    { genero: { $regex: genrePattern, $options: "i" } },
-  );
+  return sendAnimeResults(req, res, {
+    genero: { $regex: genrePattern, $options: "i" },
+  });
 });
 
 /**
@@ -642,6 +646,109 @@ router.get("/top/:limit", async (req, res) => {
       .toArray();
 
     return res.status(200).send(result);
+  } catch (error) {
+    console.error("error: ", error);
+    return res.status(500).send({ error: "Internal server error" });
+  }
+});
+
+/**
+ * @openapi
+ * /anime/ratings/{order}:
+ *   get:
+ *     summary: Get anime sorted by the number of ratings from users
+ *     tags:
+ *       - Anime
+ *     parameters:
+ *       - in: path
+ *         name: order
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *         description: The sorting order (asc for ascending, desc for descending)
+ *     responses:
+ *       '200':
+ *         description: A list of anime sorted by the number of ratings from users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   title:
+ *                     type: string
+ */
+// router to get the animes sorted by the number of ratings from the users collection
+router.get("/ratings/:order", async (req, res) => {
+  const order = req.params.order.toString();
+
+  const isValidOrder = order === "asc" || order === "desc";
+
+  if (!isValidOrder) {
+    return res.status(400).send({ error: "Invalid order parameter" });
+  }
+
+  try {
+    const sortOrder = order === "asc" ? 1 : -1;
+
+    const results = await db
+      .collection("anime")
+      .aggregate([
+        {
+          $lookup: {
+            from: "users",
+            let: { animeId: "$id" }, // Store the current anime's id in a variable
+            pipeline: [
+              // 1. Find users who have reviewed this anime
+              {
+                $match: {
+                  $expr: {
+                    $in: [
+                      "$$animeId",
+                      { $ifNull: ["$avaliacoes.item_id", []] },
+                    ],
+                  },
+                },
+              },
+              // 2. Split the user's avaliacoes array into separate review objects
+              { $unwind: "$avaliacoes" },
+              // 3. Keep ONLY the review that matches this specific anime
+              {
+                $match: {
+                  $expr: { $eq: ["$avaliacoes.item_id", "$$animeId"] },
+                },
+              },
+              // 4. Format the output (keeps the reviewer's name, hides email/address)
+              {
+                $project: {
+                  _id: 0,
+                  userId: "$id",
+                  nome: 1,
+                  nota: "$avaliacoes.nota",
+                  comentario: "$avaliacoes.comentario",
+                  data: "$avaliacoes.data",
+                },
+              },
+            ],
+            as: "userRatings",
+          },
+        },
+        {
+          $addFields: {
+            ratingsCount: { $size: "$userRatings" },
+          },
+        },
+        {
+          $sort: { ratingsCount: sortOrder, id: 1 },
+        },
+      ])
+      .toArray();
+
+    return res.status(200).send(results);
   } catch (error) {
     console.error("error: ", error);
     return res.status(500).send({ error: "Internal server error" });
