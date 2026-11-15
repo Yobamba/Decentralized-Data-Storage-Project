@@ -27,6 +27,40 @@ import swaggerJSDoc from "swagger-jsdoc";
  */
 const router = express.Router();
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+async function sendAnimeResults(req, res, filter, sort = { popularidade: -1, id: 1 }) {
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 50);
+
+  if (
+    !Number.isInteger(page) ||
+    page < 1 ||
+    !Number.isInteger(limit) ||
+    limit < 1 ||
+    limit > 100
+  ) {
+    return res.status(400).send({
+      error: "Invalid pagination. Page must be positive and limit must be between 1 and 100",
+    });
+  }
+
+  try {
+    const results = await db
+      .collection("anime")
+      .find(filter)
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .toArray();
+
+    return res.status(200).send(results);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send({ error: "Internal server error" });
+  }
+}
+
 // #1 return first 50 documents from anime collection
 router.get("/", async (req, res) => {
   const page = Number(req.query.page ?? 1);
@@ -124,6 +158,194 @@ router.post("/", async (req, res) => {
     console.error(error);
     return res.status(500).send({ error: "Internal server error" });
   }
+});
+
+/**
+ * @openapi
+ * /anime/genre/{genre}:
+ *   get:
+ *     summary: Find anime by genre
+ *     tags:
+ *       - Anime
+ *     parameters:
+ *       - in: path
+ *         name: genre
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Genre to match (URL-encode spaces)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
+ *     responses:
+ *       '200':
+ *         description: Matching anime ordered by popularity
+ *       '400':
+ *         description: Invalid pagination parameters
+ *       '500':
+ *         description: Internal server error
+ */
+router.get("/genre/:genre", async (req, res) => {
+  const genre = req.params.genre.trim();
+  if (!genre || genre.length > 100) {
+    return res.status(400).send({ error: "Invalid genre" });
+  }
+
+  const genrePattern = `(^|,\\s*)${escapeRegex(genre)}(\\s*,|$)`;
+  return sendAnimeResults(
+    req,
+    res,
+    { genero: { $regex: genrePattern, $options: "i" } },
+  );
+});
+
+/**
+ * @openapi
+ * /anime/year/{year}:
+ *   get:
+ *     summary: Find anime by release year
+ *     tags:
+ *       - Anime
+ *     parameters:
+ *       - in: path
+ *         name: year
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Release year
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
+ *     responses:
+ *       '200':
+ *         description: Matching anime ordered by rating
+ *       '400':
+ *         description: Invalid year or pagination parameters
+ *       '500':
+ *         description: Internal server error
+ */
+router.get("/year/:year", async (req, res) => {
+  const year = Number(req.params.year);
+  if (!Number.isInteger(year) || year < 0) {
+    return res.status(400).send({ error: "Invalid release year" });
+  }
+
+  return sendAnimeResults(
+    req,
+    res,
+    { ano_lancamento: year },
+    { classificacao_imdb: -1, id: 1 },
+  );
+});
+
+/**
+ * @openapi
+ * /anime/studio/{studio}:
+ *   get:
+ *     summary: Find anime by studio
+ *     tags:
+ *       - Anime
+ *     parameters:
+ *       - in: path
+ *         name: studio
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Studio name to match (URL-encode spaces)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
+ *     responses:
+ *       '200':
+ *         description: Matching anime ordered by popularity
+ *       '400':
+ *         description: Invalid studio or pagination parameters
+ *       '500':
+ *         description: Internal server error
+ */
+router.get("/studio/:studio", async (req, res) => {
+  const studio = req.params.studio.trim();
+  if (!studio || studio.length > 100) {
+    return res.status(400).send({ error: "Invalid studio" });
+  }
+
+  return sendAnimeResults(req, res, {
+    estudio: {
+      $regex: `^${escapeRegex(studio)}$`,
+      $options: "i",
+    },
+  });
+});
+
+/**
+ * @openapi
+ * /anime/language/{language}:
+ *   get:
+ *     summary: Find anime by original language
+ *     tags:
+ *       - Anime
+ *     parameters:
+ *       - in: path
+ *         name: language
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Original language to match (URL-encode spaces)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *           maximum: 100
+ *     responses:
+ *       '200':
+ *         description: Matching anime ordered by popularity
+ *       '400':
+ *         description: Invalid language or pagination parameters
+ *       '500':
+ *         description: Internal server error
+ */
+router.get("/language/:language", async (req, res) => {
+  const language = req.params.language.trim();
+  if (!language || language.length > 100) {
+    return res.status(400).send({ error: "Invalid language" });
+  }
+
+  return sendAnimeResults(req, res, {
+    idioma_original: {
+      $regex: `^${escapeRegex(language)}$`,
+      $options: "i",
+    },
+  });
 });
 
 /** * @openapi
