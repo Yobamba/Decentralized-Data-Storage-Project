@@ -1,6 +1,5 @@
 import express from "express";
 import db from "../db/config.js";
-import swaggerJSDoc from "swagger-jsdoc";
 
 /**
  * @openapi
