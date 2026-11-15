@@ -123,7 +123,6 @@ router.post("/", async (req, res) => {
     usersToInsert.push({
       name: String(user.name).trim(),
       email: String(user.email).trim().toLowerCase(),
-      createdAt: new Date(),
     });
   }
 
