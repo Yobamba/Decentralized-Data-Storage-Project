@@ -305,6 +305,84 @@ router.get("/studio/:studio", async (req, res) => {
   });
 });
 
+/** * @openapi
+ * /anime/star:
+ *   get:
+ *     summary: Get anime with 5-star ratings from users
+ *     tags:
+ *       - Anime
+ *     responses:
+ *       '200':
+ *         description: A list of anime with 5-star ratings from users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   title:
+ *                     type: string
+ */
+// endpoint to show the animes with 5 stars in the users collection
+router.get("/star", async (req, res) => {
+  try {
+    const results = await db
+      .collection("anime")
+      .aggregate([
+        {
+          $lookup: {
+            from: "users",
+            let: { animeId: "$id" },
+            pipeline: [
+              { $unwind: "$avaliacoes" },
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$avaliacoes.item_id", "$$animeId"] },
+                      { $eq: ["$avaliacoes.nota", 5] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  userId: "$id",
+                  nome: 1,
+                  nota: "$avaliacoes.nota",
+                  comentario: "$avaliacoes.comentario",
+                  data: "$avaliacoes.data",
+                },
+              },
+            ],
+            as: "fiveStarRatings",
+          },
+        },
+        {
+          $match: { fiveStarRatings: { $ne: [] } },
+        },
+        {
+          $addFields: {
+            fiveStarCount: { $size: "$fiveStarRatings" },
+          },
+        },
+        {
+          $sort: { fiveStarCount: -1, id: 1 },
+        },
+      ])
+      .toArray();
+
+    return res.status(200).send(results);
+  } catch (error) {
+    console.error("error: ", error);
+    return res.status(500).send({ error: "Internal server error" });
+  }
+});
+
 /**
  * @openapi
  * /anime/language/{language}:
