@@ -80,9 +80,78 @@ router.get("/", async (req, res) => {
  *           schema:
  *             oneOf:
  *               - type: object
+ *                 required:
+ *                   - titulo
+ *                 properties:
+ *                   titulo:
+ *                     type: string
+ *                   genero:
+ *                     type: string
+ *                   ano_lancamento:
+ *                     type: integer
+ *                   estudio:
+ *                     type: string
+ *                   episodios:
+ *                     type: integer
+ *                   classificacao_imdb:
+ *                     type: number
+ *                   idioma_original:
+ *                     type: string
+ *                   popularidade:
+ *                     type: string
  *               - type: array
  *                 items:
  *                   type: object
+ *                   required:
+ *                     - titulo
+ *                   properties:
+ *                     titulo:
+ *                       type: string
+ *                     genero:
+ *                       type: string
+ *                     ano_lancamento:
+ *                       type: integer
+ *                     estudio:
+ *                       type: string
+ *                     episodios:
+ *                       type: integer
+ *                     classificacao_imdb:
+ *                       type: number
+ *                     idioma_original:
+ *                       type: string
+ *                     popularidade:
+ *                       type: string
+ *           examples:
+ *             singleAnime:
+ *               summary: Single anime
+ *               value:
+ *                 titulo: "Frieren: Beyond Journey's End"
+ *                 genero: "Fantasia"
+ *                 ano_lancamento: 2023
+ *                 estudio: "Madhouse"
+ *                 episodios: 28
+ *                 classificacao_imdb: 8.9
+ *                 idioma_original: "Japonês"
+ *                 popularidade: "Alta"
+ *             multipleAnime:
+ *               summary: Multiple anime (array)
+ *               value:
+ *                 - titulo: "Chainsaw Man"
+ *                   genero: "Ação"
+ *                   ano_lancamento: 2022
+ *                   estudio: "MAPPA"
+ *                   episodios: 12
+ *                   classificacao_imdb: 8.4
+ *                   idioma_original: "Japonês"
+ *                   popularidade: "Alta"
+ *                 - titulo: "Dandadan"
+ *                   genero: "Ação"
+ *                   ano_lancamento: 2024
+ *                   estudio: "Science SARU"
+ *                   episodios: 12
+ *                   classificacao_imdb: 8.5
+ *                   idioma_original: "Japonês"
+ *                   popularidade: "Alta"
  *     responses:
  *       '201':
  *         description: Record(s) created successfully
