@@ -272,14 +272,14 @@ router.get("/year/:year", async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: string
+ *           type: integer
  *         description: The ID of the user
  *       - in: path
  *         name: animeId
  *         required: true
  *         schema:
- *           type: string
- *         description: The ID of the anime to review
+ *           type: integer
+ *         description: The ID of the anime being reviewed
  *     requestBody:
  *       required: true
  *       content:
@@ -288,12 +288,15 @@ router.get("/year/:year", async (req, res) => {
  *             type: object
  *             properties:
  *               nota:
- *                 type: number
- *                 description: The rating given by the user (1-5)
+ *                 type: integer
+ *                 description: The rating (1 to 5)
+ *               comentario:
+ *                 type: string
+ *                 description: The comment for the review
  *               data:
  *                 type: string
  *                 format: date
- *                 description: The date of the review
+ *                 description: The date of the review in YYYY-MM-DD format
  *     responses:
  *       '200':
  *         description: Review added successfully
@@ -305,7 +308,7 @@ router.get("/year/:year", async (req, res) => {
  *                 message:
  *                   type: string
  *       '400':
- *         description: Missing required fields or invalid input
+ *         description: Invalid input parameters
  *         content:
  *           application/json:
  *             schema:
@@ -326,7 +329,7 @@ router.get("/year/:year", async (req, res) => {
 router.post("/:id/review/:animeId", async (req, res) => {
   const userId = Number(req.params.id);
   const animeId = Number(req.params.animeId);
-  const { nota, data } = req.body ?? {};
+  const { nota, comentario, data } = req.body ?? {};
 
   if (!Number.isInteger(userId) || userId < 1) {
     return res.status(400).send({ error: "Invalid user ID" });
@@ -345,6 +348,10 @@ router.post("/:id/review/:animeId", async (req, res) => {
       .send({ error: "Review date must use YYYY-MM-DD format" });
   }
 
+  if (comentario && typeof comentario !== "string") {
+    return res.status(400).send({ error: "Comment must be a string" });
+  }
+
   try {
     const collection = db.collection("users");
     const result = await collection.updateOne(
@@ -354,6 +361,7 @@ router.post("/:id/review/:animeId", async (req, res) => {
           avaliacoes: {
             animeId,
             nota,
+            comentario,
             data,
           },
         },
