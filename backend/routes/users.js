@@ -1,6 +1,8 @@
 import express from "express";
 import db from "../db/config.js";
 
+const router = express.Router();
+
 /**
  * @openapi
  * /users:
@@ -23,11 +25,10 @@ import db from "../db/config.js";
  *                   title:
  *                     type: string
  */
-const router = express.Router();
-// return first 50 documents from users collection
+
 router.get("/", async (req, res) => {
   const page = Number(req.query.page ?? 1);
-  const limit = Number(req.query.limit ?? 50);
+  const limit = Number(req.query.limit ?? 20);
 
   if (!Number.isInteger(page) || page < 1) {
     return res.status(400).send({ error: "Invalid page parameter" });
