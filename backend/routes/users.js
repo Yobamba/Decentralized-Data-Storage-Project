@@ -168,7 +168,7 @@ router.get("/:id", async (req, res) => {
  * @openapi
  * /users:
  *   post:
- *     summary: Add one or multiple users
+ *     summary: Add one or more users
  *     tags:
  *       - Users
  *     requestBody:
@@ -198,8 +198,25 @@ router.get("/:id", async (req, res) => {
  *                   type: integer
  *                 insertedIds:
  *                   type: object
+ *       '400':
+ *         description: Invalid input parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       '409':
+ *         description: Duplicate user record exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
  */
-
 router.post("/", async (req, res) => {
   if (!req.body || typeof req.body !== "object") {
     return res.status(400).json({ error: "Request body is required" });
@@ -211,22 +228,34 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "At least one user is required" });
   }
 
-  const usersToInsert = [];
+  // 1. Validate all users first before hitting the database
   for (const user of rawUsers) {
     if (!user || typeof user !== "object" || !user.name || !user.email) {
       return res.status(400).json({
         error: "Each user must be an object with 'name' and 'email'",
       });
     }
-
-    usersToInsert.push({
-      name: String(user.name).trim(),
-      email: String(user.email).trim().toLowerCase(),
-    });
   }
 
   try {
     const collection = db.collection("users");
+
+    // 2. Fetch the highest numeric id ONCE
+    const lastUser = await collection
+      .find({ id: { $type: "number" } })
+      .sort({ id: -1 })
+      .limit(1)
+      .toArray();
+
+    let nextId = lastUser.length > 0 ? lastUser[0].id + 1 : 1;
+
+    // 3. Assign and increment nextId for each user in the batch
+    const usersToInsert = rawUsers.map((user) => ({
+      id: nextId++,
+      name: String(user.name).trim(),
+      email: String(user.email).trim().toLowerCase(),
+    }));
+
     const result = await collection.insertMany(usersToInsert);
 
     return res.status(201).json({
@@ -569,4 +598,70 @@ router.post("/:id/review/:animeId", async (req, res) => {
     res.status(500).send({ error: "Internal server error" });
   }
 });
+
+/**
+ * @openapi
+ * /users/{id}:
+ *   delete:
+ *     summary: Delete a user by ID
+ *     tags:
+ *       - Users
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the user to delete
+ *     responses:
+ *       '200':
+ *         description: User deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *       '400':
+ *         description: Invalid user ID parameter
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *       '404':
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ */
+router.delete("/:id", async (req, res) => {
+  const userId = Number(req.params.id);
+
+  if (!Number.isInteger(userId) || userId < 1) {
+    return res.status(400).send({ error: "Invalid user ID" });
+  }
+
+  try {
+    const collection = db.collection("users");
+    const result = await collection.deleteOne({ id: userId });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    res.status(200).send({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ error: "Internal server error" });
+  }
+});
+
 export default router;
