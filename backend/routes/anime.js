@@ -757,7 +757,7 @@ router.put("/:id", async (req, res) => {
 /** * @openapi
  * /anime/top/{limit}:
  *   get:
- *     summary: Get top anime by IMDb rating
+ *     summary: Get top anime by average score
  *     tags:
  *       - Anime
  *     parameters:
@@ -766,10 +766,10 @@ router.put("/:id", async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: The number of top anime to retrieve (1-100)
+ *         description: The maximum number of top anime to return
  *     responses:
  *       '200':
- *         description: A list of top anime sorted by IMDb rating
+ *         description: A list of top anime by average score
  *         content:
  *           application/json:
  *             schema:
@@ -781,28 +781,79 @@ router.put("/:id", async (req, res) => {
  *                     type: integer
  *                   title:
  *                     type: string
+ *                   genero:
+ *                     type: string
+ *                   ano_lancamento:
+ *                     type: integer
+ *                   estudio:
+ *                     type: string
+ *                   episodios:
+ *                     type: integer
  *                   classificacao_imdb:
  *                     type: number
+ *                   idioma_original:
+ *                     type: string
+ *                   popularidade:
+ *                     type: string
+ *                   averageScore:
+ *                     type: number
+ *       '400':
+ *         description: Invalid limit parameter
+ *       '500':
+ *         description: Internal server error
  */
 router.get("/top/:limit", async (req, res) => {
   const limit = Number(req.params.limit);
 
-  if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
-    return res
-      .status(400)
-      .send({ error: "Invalid limit: must be a number between 1 and 100" });
+  if (!Number.isInteger(limit) || limit < 1) {
+    return res.status(400).send({ error: "Invalid limit parameter" });
   }
 
   try {
-    const collection = db.collection("anime");
-
-    const result = await collection
-      .find({})
-      .sort({ classificacao_imdb: -1 })
-      .limit(limit)
+    const results = await db
+      .collection("anime")
+      .aggregate([
+        {
+          $lookup: {
+            from: "users",
+            let: { animeId: "$id" },
+            pipeline: [
+              { $unwind: "$avaliacoes" },
+              {
+                $match: {
+                  $expr: { $eq: ["$avaliacoes.item_id", "$$animeId"] },
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  averageScore: { $avg: "$avaliacoes.nota" },
+                },
+              },
+            ],
+            as: "averageScores",
+          },
+        },
+        {
+          $addFields: {
+            averageScore: {
+              $ifNull: [
+                { $arrayElemAt: ["$averageScores.averageScore", 0] },
+                null,
+              ],
+            },
+          },
+        },
+        {
+          $sort: { averageScore: -1, id: 1 },
+        },
+        {
+          $limit: limit,
+        },
+      ])
       .toArray();
 
-    return res.status(200).send(result);
+    return res.status(200).send(results);
   } catch (error) {
     console.error("error: ", error);
     return res.status(500).send({ error: "Internal server error" });
@@ -838,6 +889,18 @@ router.get("/top/:limit", async (req, res) => {
  *                     type: integer
  *                   title:
  *                     type: string
+ *                   estudio:
+ *                     type: string
+ *                   episodios:
+ *                     type: integer
+ *                   classificacao_imdb:
+ *                     type: number
+ *                   idioma_original:
+ *                     type: string
+ *                   popularidade:
+ *                     type: string
+ *                   averageScore:
+ *                     type: number
  */
 // router to get the animes sorted by the number of ratings from the users collection
 router.get("/ratings/:order", async (req, res) => {
