@@ -351,6 +351,19 @@ router.get("/studio/:studio", async (req, res) => {
  *     summary: Get anime with 5-star ratings from users
  *     tags:
  *       - Anime
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of records per page
  *     responses:
  *       '200':
  *         description: A list of anime with 5-star ratings from users
@@ -368,6 +381,18 @@ router.get("/studio/:studio", async (req, res) => {
  */
 // endpoint to show the animes with 5 stars in the users collection
 router.get("/star", async (req, res) => {
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 20);
+
+  if (!Number.isInteger(page) || page < 1) {
+    return res.status(400).send({ error: "Invalid page parameter" });
+  }
+  if (!Number.isInteger(limit) || limit < 1) {
+    return res.status(400).send({ error: "Invalid limit parameter" });
+  }
+
+  const skip = (page - 1) * limit;
+
   try {
     const results = await db
       .collection("anime")
@@ -413,6 +438,8 @@ router.get("/star", async (req, res) => {
         {
           $sort: { fiveStarCount: -1, id: 1 },
         },
+        { $skip: skip },
+        { $limit: limit },
       ])
       .toArray();
 
