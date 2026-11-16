@@ -331,7 +331,7 @@ router.post("/", async (req, res) => {
  *                 error:
  *                   type: string
  *       '404':
- *         description: User not found
+ *         description: User or anime not found
  *         content:
  *           application/json:
  *             schema:
@@ -754,7 +754,7 @@ router.get("/year/:year", async (req, res) => {
  *                 error:
  *                   type: string
  *       '404':
- *         description: User not found
+ *         description: User or anime not found
  *         content:
  *           application/json:
  *             schema:
@@ -791,6 +791,11 @@ router.post("/:id/review/:animeId", async (req, res) => {
   }
 
   try {
+    const anime = await db.collection("anime").findOne({ id: animeId });
+    if (!anime) {
+      return res.status(404).send({ error: "Anime not found" });
+    }
+
     const collection = db.collection("users");
     const result = await collection.updateOne(
       { id: userId },
