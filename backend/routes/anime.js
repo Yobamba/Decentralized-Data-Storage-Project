@@ -278,7 +278,7 @@ router.get("/genre/:genre", async (req, res) => {
  * @openapi
  * /anime/year/{year}:
  *   get:
- *     summary: Find anime by release year
+ *     summary: Find anime reviewed during a year
  *     tags:
  *       - Anime
  *     parameters:
@@ -287,7 +287,7 @@ router.get("/genre/:genre", async (req, res) => {
  *         required: true
  *         schema:
  *           type: integer
- *         description: Release year
+ *         description: Year the user review was registered
  *       - in: query
  *         name: page
  *         schema:
@@ -301,7 +301,36 @@ router.get("/genre/:genre", async (req, res) => {
  *           maximum: 100
  *     responses:
  *       '200':
- *         description: Matching anime ordered by rating
+ *         description: Anime with reviews registered during the specified year
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                   titulo:
+ *                     type: string
+ *                   ano_lancamento:
+ *                     type: integer
+ *                   userRatings:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         userId:
+ *                           type: integer
+ *                         nome:
+ *                           type: string
+ *                         nota:
+ *                           type: number
+ *                         comentario:
+ *                           type: string
+ *                         data_registo:
+ *                           type: string
+ *                           format: date
  *       '400':
  *         description: Invalid year or pagination parameters
  *       '500':
@@ -310,7 +339,7 @@ router.get("/genre/:genre", async (req, res) => {
 router.get("/year/:year", async (req, res) => {
   const year = Number(req.params.year);
   if (!Number.isInteger(year) || year < 0) {
-    return res.status(400).send({ error: "Invalid release year" });
+    return res.status(400).send({ error: "Invalid review year" });
   }
 
   const page = Number(req.query.page ?? 1);
@@ -323,12 +352,47 @@ router.get("/year/:year", async (req, res) => {
   }
 
   try {
+    const yearStart = `${year}-01-01`;
+    const nextYearStart = `${year + 1}-01-01`;
     const results = await db
       .collection("anime")
-      .find({ ano_lancamento: year })
-      .sort({ classificacao_imdb: -1, id: 1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
+      .aggregate([
+        {
+          $lookup: {
+            from: "users",
+            let: { animeId: "$id" },
+            pipeline: [
+              { $unwind: "$avaliacoes" },
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$avaliacoes.item_id", "$$animeId"] },
+                      { $gte: ["$avaliacoes.data", yearStart] },
+                      { $lt: ["$avaliacoes.data", nextYearStart] },
+                    ],
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  userId: "$id",
+                  nome: 1,
+                  nota: "$avaliacoes.nota",
+                  comentario: "$avaliacoes.comentario",
+                  data_registo: "$avaliacoes.data",
+                },
+              },
+            ],
+            as: "userRatings",
+          },
+        },
+        { $match: { "userRatings.0": { $exists: true } } },
+        { $sort: { classificacao_imdb: -1, id: 1 } },
+        { $skip: (page - 1) * limit },
+        { $limit: limit },
+      ])
       .toArray();
 
     return res.status(200).send(results);
