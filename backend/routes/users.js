@@ -1,4 +1,5 @@
 import express from "express";
+import { ObjectId } from "mongodb";
 import db from "../db/config.js";
 
 const router = express.Router();
@@ -34,9 +35,12 @@ const router = express.Router();
  *               items:
  *                 type: object
  *                 properties:
+ *                   _id:
+ *                     type: string
+ *                     format: objectId
  *                   id:
  *                     type: integer
- *                   title:
+ *                   name:
  *                     type: string
  */
 
@@ -77,8 +81,9 @@ router.get("/", async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: The ID of the user to retrieve
+ *           type: string
+ *           format: objectId
+ *         description: MongoDB ObjectId of the user
  *     responses:
  *       '200':
  *         description: User found with their top 3 rated animes
@@ -87,6 +92,9 @@ router.get("/", async (req, res) => {
  *             schema:
  *               type: object
  *               properties:
+ *                 _id:
+ *                   type: string
+ *                   format: objectId
  *                 id:
  *                   type: integer
  *                 name:
@@ -111,6 +119,9 @@ router.get("/", async (req, res) => {
  *                   items:
  *                     type: object
  *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         format: objectId
  *                       id:
  *                         type: integer
  *                       titulo:
@@ -138,7 +149,7 @@ router.get("/", async (req, res) => {
  *                       item_id:
  *                         type: integer
  *       '400':
- *         description: Invalid user ID parameter
+ *         description: Invalid user ObjectId parameter
  *         content:
  *           application/json:
  *             schema:
@@ -157,15 +168,15 @@ router.get("/", async (req, res) => {
  *                   type: string
  */
 router.get("/:id", async (req, res) => {
-  const userId = Number(req.params.id);
+  const userObjectId = req.params.id;
 
-  if (!Number.isInteger(userId) || userId < 1) {
-    return res.status(400).send({ error: "Invalid user ID" });
+  if (!/^[0-9a-fA-F]{24}$/.test(userObjectId)) {
+    return res.status(400).send({ error: "Invalid user ObjectId" });
   }
 
   try {
     const collection = db.collection("users");
-    const user = await collection.findOne({ id: userId });
+    const user = await collection.findOne({ _id: new ObjectId(userObjectId) });
 
     if (!user) {
       return res.status(404).send({ error: "User not found" });
@@ -313,8 +324,9 @@ router.post("/", async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: The ID of the user to update
+ *           type: string
+ *           format: objectId
+ *         description: MongoDB ObjectId of the user to update
  *     requestBody:
  *       required: true
  *       content:
@@ -369,12 +381,12 @@ router.post("/", async (req, res) => {
  *                   type: string
  */
 router.put("/:id", async (req, res) => {
-  const userId = Number(req.params.id);
+  const userObjectId = req.params.id;
   const { name, email, idade, cidade, distrito, pais, data_registo, activo } =
     req.body ?? {};
 
-  if (!Number.isInteger(userId) || userId < 1) {
-    return res.status(400).send({ error: "Invalid user ID" });
+  if (!/^[0-9a-fA-F]{24}$/.test(userObjectId)) {
+    return res.status(400).send({ error: "Invalid user ObjectId" });
   }
 
   if (name !== undefined && (typeof name !== "string" || !name.trim())) {
@@ -434,7 +446,7 @@ router.put("/:id", async (req, res) => {
     }
 
     const result = await collection.updateOne(
-      { id: userId },
+      { _id: new ObjectId(userObjectId) },
       { $set: updates },
     );
 
@@ -487,7 +499,7 @@ router.put("/:id", async (req, res) => {
  *                 properties:
  *                   id:
  *                     type: integer
- *                   title:
+ *                   name:
  *                     type: string
  */
 router.get("/ratings/:order", async (req, res) => {
@@ -571,7 +583,7 @@ router.get("/ratings/:order", async (req, res) => {
  *                 properties:
  *                   id:
  *                     type: integer
- *                   title:
+ *                   name:
  *                     type: string
  */
 router.get("/star", async (req, res) => {
@@ -656,7 +668,7 @@ router.get("/star", async (req, res) => {
  *                 properties:
  *                   id:
  *                     type: integer
- *                   title:
+ *                   name:
  *                     type: string
  */
 router.get("/year/:year", async (req, res) => {
@@ -737,8 +749,9 @@ router.get("/year/:year", async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: The ID of the user
+ *           type: string
+ *           format: objectId
+ *         description: MongoDB ObjectId of the user
  *       - in: path
  *         name: animeId
  *         required: true
@@ -792,13 +805,13 @@ router.get("/year/:year", async (req, res) => {
  *                   type: string
  */
 router.post("/:id/review/:animeId", async (req, res) => {
-  const userId = Number(req.params.id);
+  const userObjectId = req.params.id;
   const animeId = Number(req.params.animeId);
   const { nota, comentario } = req.body ?? {};
   const { data } = req.body ?? {};
 
-  if (!Number.isInteger(userId) || userId < 1) {
-    return res.status(400).send({ error: "Invalid user ID" });
+  if (!/^[0-9a-fA-F]{24}$/.test(userObjectId)) {
+    return res.status(400).send({ error: "Invalid user ObjectId" });
   }
   if (!Number.isInteger(animeId) || animeId < 1) {
     return res.status(400).send({ error: "Invalid anime ID" });
@@ -826,7 +839,7 @@ router.post("/:id/review/:animeId", async (req, res) => {
 
     const collection = db.collection("users");
     const result = await collection.updateOne(
-      { id: userId },
+      { _id: new ObjectId(userObjectId) },
       {
         $push: {
           avaliacoes: {
@@ -862,8 +875,9 @@ router.post("/:id/review/:animeId", async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: The ID of the user to delete
+ *           type: string
+ *           format: objectId
+ *         description: MongoDB ObjectId of the user to delete
  *     responses:
  *       '200':
  *         description: User deleted successfully
@@ -875,7 +889,7 @@ router.post("/:id/review/:animeId", async (req, res) => {
  *                 message:
  *                   type: string
  *       '400':
- *         description: Invalid user ID parameter
+ *         description: Invalid user ObjectId parameter
  *         content:
  *           application/json:
  *             schema:
@@ -894,15 +908,17 @@ router.post("/:id/review/:animeId", async (req, res) => {
  *                   type: string
  */
 router.delete("/:id", async (req, res) => {
-  const userId = Number(req.params.id);
+  const userObjectId = req.params.id;
 
-  if (!Number.isInteger(userId) || userId < 1) {
-    return res.status(400).send({ error: "Invalid user ID" });
+  if (!/^[0-9a-fA-F]{24}$/.test(userObjectId)) {
+    return res.status(400).send({ error: "Invalid user ObjectId" });
   }
 
   try {
     const collection = db.collection("users");
-    const result = await collection.deleteOne({ id: userId });
+    const result = await collection.deleteOne({
+      _id: new ObjectId(userObjectId),
+    });
 
     if (result.deletedCount === 0) {
       return res.status(404).send({ error: "User not found" });

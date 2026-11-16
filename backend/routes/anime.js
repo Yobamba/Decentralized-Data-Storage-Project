@@ -1,4 +1,5 @@
 import express from "express";
+import { ObjectId } from "mongodb";
 import db from "../db/config.js";
 
 const router = express.Router();
@@ -35,9 +36,12 @@ const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
  *               items:
  *                 type: object
  *                 properties:
+ *                   _id:
+ *                     type: string
+ *                     format: objectId
  *                   id:
  *                     type: integer
- *                   title:
+ *                   titulo:
  *                     type: string
  */
 // Return a page of anime documents.
@@ -498,7 +502,7 @@ router.get("/studio/:studio", async (req, res) => {
  *                 properties:
  *                   id:
  *                     type: integer
- *                   title:
+ *                   titulo:
  *                     type: string
  */
 // endpoint to show the animes with 5 stars in the users collection
@@ -718,8 +722,9 @@ router.get("/popularity/:popularity", async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: The ID of the anime to retrieve
+ *           type: string
+ *           format: objectId
+ *         description: MongoDB ObjectId of the anime to retrieve
  *     responses:
  *       '200':
  *         description: Anime details with average score
@@ -728,9 +733,12 @@ router.get("/popularity/:popularity", async (req, res) => {
  *             schema:
  *               type: object
  *               properties:
+ *                 _id:
+ *                   type: string
+ *                   format: objectId
  *                 id:
  *                   type: integer
- *                 title:
+ *                 titulo:
  *                   type: string
  *                 genero:
  *                   type: string
@@ -749,7 +757,7 @@ router.get("/popularity/:popularity", async (req, res) => {
  *                 averageScore:
  *                   type: number
  *       '400':
- *         description: Invalid anime ID provided
+ *         description: Invalid anime ObjectId provided
  *       '404':
  *         description: Anime not found with the given ID
  *       '500':
@@ -758,15 +766,17 @@ router.get("/popularity/:popularity", async (req, res) => {
 
 // return the anime by the id with all the info about it plus the average score
 router.get("/:id", async (req, res) => {
-  const animeId = Number(req.params.id);
+  const animeObjectId = req.params.id;
 
-  if (!Number.isInteger(animeId)) {
-    return res.status(400).send({ error: "Invalid: id must be an integer" });
+  if (!/^[0-9a-fA-F]{24}$/.test(animeObjectId)) {
+    return res.status(400).send({ error: "Invalid anime ObjectId" });
   }
 
   try {
     const collection = db.collection("anime");
-    const anime = await collection.findOne({ id: animeId });
+    const anime = await collection.findOne({
+      _id: new ObjectId(animeObjectId),
+    });
 
     if (!anime) {
       return res.status(404).send({ error: "Anime not found" });
@@ -777,7 +787,7 @@ router.get("/:id", async (req, res) => {
       .collection("users")
       .aggregate([
         { $unwind: "$avaliacoes" },
-        { $match: { "avaliacoes.item_id": animeId } },
+        { $match: { "avaliacoes.item_id": anime.id } },
         {
           $group: {
             _id: null,
@@ -808,26 +818,29 @@ router.get("/:id", async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: The ID of the anime to delete
+ *           type: string
+ *           format: objectId
+ *         description: MongoDB ObjectId of the anime to delete
  *     responses:
  *       '200':
  *         description: Anime deleted successfully
  *       '400':
- *         description: Invalid anime ID provided
+ *         description: Invalid anime ObjectId provided
  *       '404':
  *         description: Anime not found with the given ID
  */
 
 router.delete("/:id", async (req, res) => {
   try {
-    const animeId = parseInt(req.params.id);
-    if (isNaN(animeId)) {
-      return res.status(400).send({ error: "Invalid anime ID" });
+    const animeObjectId = req.params.id;
+    if (!/^[0-9a-fA-F]{24}$/.test(animeObjectId)) {
+      return res.status(400).send({ error: "Invalid anime ObjectId" });
     }
 
     const collection = db.collection("anime");
-    const result = await collection.deleteOne({ id: animeId });
+    const result = await collection.deleteOne({
+      _id: new ObjectId(animeObjectId),
+    });
 
     if (result.deletedCount === 0) {
       return res.status(404).send({ error: "Anime not found" });
@@ -851,8 +864,9 @@ router.delete("/:id", async (req, res) => {
  *         name: id
  *         required: true
  *         schema:
- *           type: integer
- *         description: The ID of the anime to update
+ *           type: string
+ *           format: objectId
+ *         description: MongoDB ObjectId of the anime to update
  *     requestBody:
  *       required: true
  *       content:
@@ -880,17 +894,17 @@ router.delete("/:id", async (req, res) => {
  *       '200':
  *         description: Anime updated successfully
  *       '400':
- *         description: Invalid request payload or anime ID
+ *         description: Invalid request payload or anime ObjectId
  *       '404':
  *         description: Anime not found with the given ID
  *       '500':
  *         description: Internal server error
  */
 router.put("/:id", async (req, res) => {
-  const animeId = Number(req.params.id);
+  const animeObjectId = req.params.id;
 
-  if (!Number.isInteger(animeId)) {
-    return res.status(400).send({ error: "Invalid: id must be an integer" });
+  if (!/^[0-9a-fA-F]{24}$/.test(animeObjectId)) {
+    return res.status(400).send({ error: "Invalid anime ObjectId" });
   }
 
   const {
@@ -976,7 +990,7 @@ router.put("/:id", async (req, res) => {
   try {
     const collection = db.collection("anime");
     const result = await collection.updateOne(
-      { id: animeId },
+      { _id: new ObjectId(animeObjectId) },
       { $set: updates },
     );
 
@@ -1022,7 +1036,7 @@ router.put("/:id", async (req, res) => {
  *                 properties:
  *                   id:
  *                     type: integer
- *                   title:
+ *                   titulo:
  *                     type: string
  *                   genero:
  *                     type: string
@@ -1146,7 +1160,7 @@ router.get("/top/:limit", async (req, res) => {
  *                 properties:
  *                   id:
  *                     type: integer
- *                   title:
+ *                   titulo:
  *                     type: string
  *                   estudio:
  *                     type: string
