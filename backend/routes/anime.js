@@ -1158,8 +1158,24 @@ router.get("/top/:limit", async (req, res) => {
  *                     type: string
  *                   popularidade:
  *                     type: string
- *                   averageScore:
- *                     type: number
+ *                   ratingsCount:
+ *                     type: integer
+ *                   userRatings:
+ *                     type: array
+ *                     items:
+ *                       type: object
+ *                       properties:
+ *                         userId:
+ *                           type: integer
+ *                         nome:
+ *                           type: string
+ *                         nota:
+ *                           type: number
+ *                         comentario:
+ *                           type: string
+ *                         data:
+ *                           type: string
+ *                           format: date
  */
 // router to get the animes sorted by the number of ratings from the users collection
 router.get("/ratings/:order", async (req, res) => {

@@ -98,7 +98,7 @@ router.get("/", async (req, res) => {
  *                   items:
  *                     type: object
  *                     properties:
- *                       animeId:
+ *                       item_id:
  *                         type: integer
  *                       nota:
  *                         type: integer
@@ -111,14 +111,32 @@ router.get("/", async (req, res) => {
  *                   items:
  *                     type: object
  *                     properties:
- *                       animeId:
+ *                       id:
  *                         type: integer
+ *                       titulo:
+ *                         type: string
+ *                       genero:
+ *                         type: string
+ *                       ano_lancamento:
+ *                         type: integer
+ *                       estudio:
+ *                         type: string
+ *                       episodios:
+ *                         type: integer
+ *                       classificacao_imdb:
+ *                         type: number
+ *                       idioma_original:
+ *                         type: string
+ *                       popularidade:
+ *                         type: string
  *                       nota:
  *                         type: integer
  *                       comentario:
  *                         type: string
  *                       data:
  *                         type: string
+ *                       item_id:
+ *                         type: integer
  *       '400':
  *         description: Invalid user ID parameter
  *         content:
@@ -154,9 +172,19 @@ router.get("/:id", async (req, res) => {
     }
 
     // Sort the user's ratings by nota in descending order and take the top 3
-    const topRatedAnimes = (user.avaliacoes || [])
+    const topReviews = [...(user.avaliacoes || [])]
       .sort((a, b) => b.nota - a.nota)
       .slice(0, 3);
+    const animeIds = topReviews.map((review) => review.item_id);
+    const animeDocuments = await db
+      .collection("anime")
+      .find({ id: { $in: animeIds } })
+      .toArray();
+    const animeById = new Map(animeDocuments.map((anime) => [anime.id, anime]));
+    const topRatedAnimes = topReviews.flatMap((review) => {
+      const anime = animeById.get(review.item_id);
+      return anime ? [{ ...anime, ...review }] : [];
+    });
 
     res.status(200).send({ ...user, topRatedAnimes });
   } catch (error) {
@@ -331,7 +359,7 @@ router.post("/", async (req, res) => {
  *                 error:
  *                   type: string
  *       '404':
- *         description: User or anime not found
+ *         description: User not found
  *         content:
  *           application/json:
  *             schema:
