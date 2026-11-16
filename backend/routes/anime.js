@@ -328,7 +328,7 @@ router.get("/genre/:genre", async (req, res) => {
  *                           type: number
  *                         comentario:
  *                           type: string
- *                         data_registo:
+ *                         data:
  *                           type: string
  *                           format: date
  *       '400':
@@ -381,7 +381,7 @@ router.get("/year/:year", async (req, res) => {
                   nome: 1,
                   nota: "$avaliacoes.nota",
                   comentario: "$avaliacoes.comentario",
-                  data_registo: "$avaliacoes.data",
+                  data: "$avaliacoes.data",
                 },
               },
             ],

@@ -20,6 +20,7 @@ const router = express.Router();
  *         schema:
  *           type: integer
  *           default: 20
+ *           maximum: 100
  *         description: Number of records per page
  *     tags:
  *       - Users
@@ -46,7 +47,7 @@ router.get("/", async (req, res) => {
   if (!Number.isInteger(page) || page < 1) {
     return res.status(400).send({ error: "Invalid page parameter" });
   }
-  if (!Number.isInteger(limit) || limit < 1) {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
     return res.status(400).send({ error: "Invalid limit parameter" });
   }
 
@@ -435,6 +436,17 @@ router.put("/:id", async (req, res) => {
  *           type: string
  *           enum: [asc, desc]
  *         description: The sorting order (asc for ascending, desc for descending)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
  *     responses:
  *       '200':
  *         description: A list of users sorted by the number of ratings
@@ -452,6 +464,8 @@ router.put("/:id", async (req, res) => {
  */
 router.get("/ratings/:order", async (req, res) => {
   const order = req.params.order.toString();
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 20);
 
   const isValidOrder = order === "asc" || order === "desc";
 
@@ -459,6 +473,12 @@ router.get("/ratings/:order", async (req, res) => {
     return res
       .status(400)
       .send({ error: "Invalid sorting order. Use asc or desc" });
+  }
+  if (!Number.isInteger(page) || page < 1) {
+    return res.status(400).send({ error: "Invalid page parameter" });
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    return res.status(400).send({ error: "Invalid limit parameter" });
   }
 
   const sortDirection = order === "asc" ? 1 : -1;
@@ -475,9 +495,10 @@ router.get("/ratings/:order", async (req, res) => {
           },
         },
         {
-          $sort: { total_avaliacoes: sortDirection },
+          $sort: { total_avaliacoes: sortDirection, id: 1 },
         },
-
+        { $skip: (page - 1) * limit },
+        { $limit: limit },
         {
           $unset: "total_avaliacoes",
         },
@@ -498,6 +519,18 @@ router.get("/ratings/:order", async (req, res) => {
  *     summary: Get users sorted by the number of 5-star ratings
  *     tags:
  *       - Users
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
  *     responses:
  *       '200':
  *         description: A list of users sorted by the number of 5-star ratings
@@ -514,6 +547,16 @@ router.get("/ratings/:order", async (req, res) => {
  *                     type: string
  */
 router.get("/star", async (req, res) => {
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 20);
+
+  if (!Number.isInteger(page) || page < 1) {
+    return res.status(400).send({ error: "Invalid page parameter" });
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    return res.status(400).send({ error: "Invalid limit parameter" });
+  }
+
   try {
     const collection = db.collection("users");
     const result = await collection
@@ -532,8 +575,10 @@ router.get("/star", async (req, res) => {
           },
         },
         {
-          $sort: { stars: -1 },
+          $sort: { stars: -1, id: 1 },
         },
+        { $skip: (page - 1) * limit },
+        { $limit: limit },
         {
           $unset: "stars",
         },
@@ -560,6 +605,17 @@ router.get("/star", async (req, res) => {
  *         schema:
  *           type: integer
  *         description: The year to filter ratings by
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
  *     responses:
  *       '200':
  *         description: A list of users with ratings in the specified year
@@ -580,6 +636,15 @@ router.get("/year/:year", async (req, res) => {
 
   if (!Number.isInteger(year) || year < 0) {
     return res.status(400).send({ error: "Invalid year parameter" });
+  }
+
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 20);
+  if (!Number.isInteger(page) || page < 1) {
+    return res.status(400).send({ error: "Invalid page parameter" });
+  }
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+    return res.status(400).send({ error: "Invalid limit parameter" });
   }
 
   try {
@@ -616,6 +681,10 @@ router.get("/year/:year", async (req, res) => {
             filteredRatings: { $ne: [] },
           },
         },
+        { $sort: { id: 1 } },
+        { $skip: (page - 1) * limit },
+        { $limit: limit },
+        { $set: { avaliacoes: "$filteredRatings" } },
         {
           $unset: "filteredRatings",
         },
@@ -697,7 +766,8 @@ router.get("/year/:year", async (req, res) => {
 router.post("/:id/review/:animeId", async (req, res) => {
   const userId = Number(req.params.id);
   const animeId = Number(req.params.animeId);
-  const { nota, comentario, data } = req.body ?? {};
+  const { nota, comentario } = req.body ?? {};
+  const { data } = req.body ?? {};
 
   if (!Number.isInteger(userId) || userId < 1) {
     return res.status(400).send({ error: "Invalid user ID" });
@@ -727,7 +797,7 @@ router.post("/:id/review/:animeId", async (req, res) => {
       {
         $push: {
           avaliacoes: {
-            animeId,
+            item_id: animeId,
             nota,
             comentario,
             data,
